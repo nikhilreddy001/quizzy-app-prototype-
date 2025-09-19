@@ -2,7 +2,14 @@
 import re
 import nltk
 from nltk.tokenize import sent_tokenize
-nltk.download('punkt', quiet=True)
+
+# Make sure punkt and punkt_tab are available
+nltk.download("punkt", quiet=True)
+nltk.download("punkt_tab", quiet=True)
+
+def extract_text_from_uploaded(uploaded_file):
+    ...
+
 
 def extract_text_from_uploaded(uploaded_file):
     name = uploaded_file.name.lower()

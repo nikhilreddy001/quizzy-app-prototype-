@@ -1,9 +1,8 @@
 streamlit>=1.25.0
 pdfplumber
 python-docx
-transformers
-torch
-tqdm
-openai
 nltk
 pandas
+transformers
+torch
+sentencepiece
