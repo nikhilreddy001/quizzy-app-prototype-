@@ -1,7 +1,7 @@
 import streamlit as st
 from qg import extract_text_from_uploaded, chunk_text
-import json, pandas as pd, io
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
+import random
 
 st.set_page_config(page_title="Quizzy - Notes to Quiz", layout="wide")
 st.title("📘 Quizzy — Turn Notes into Quizzes")
@@ -35,46 +35,77 @@ if uploaded:
 elif raw_text.strip():
     text = raw_text.strip()
 
-# --- Generate Quiz ---
+# --- Question count slider ---
 if text:
+    num_q = st.slider("How many questions do you want?", min_value=3, max_value=15, value=6, step=1)
     chunks = chunk_text(text, max_sentences=4)
 
     if st.button("Generate Quiz"):
         quiz = []
 
-        for idx, chunk in enumerate(chunks[:3]):  # demo: 3 chunks
+        # loop through enough chunks to generate desired number of questions
+        for idx, chunk in enumerate(chunks):
+            if len(quiz) >= num_q:
+                break
+
             words = chunk.split()
             if len(words) > 5:
-                answer = words[3]
+                # pick a random answer word
+                answer = random.choice(words)
+
                 try:
+                    # --- MCQ from Hugging Face ---
                     q_text = generate_question(answer, chunk)
+                    options = [answer]
+                    while len(options) < 4:
+                        choice = random.choice(words)
+                        if choice not in options:
+                            options.append(choice)
+                    random.shuffle(options)
+
                     quiz.append({
                         "type": "MCQ",
                         "question": q_text,
-                        "options": ["Option A", answer, "Option C", "Option D"],
+                        "options": options,
                         "answer": answer
                     })
+
+                    if len(quiz) >= num_q:
+                        break
+
+                    # --- True/False (randomized) ---
+                    statement_word = random.choice(words)
+                    statement = f"{statement_word} appears in the text."
+                    truth = "True" if statement_word in words else "False"
                     quiz.append({
                         "type": "TF",
-                        "statement": f"{answer} is mentioned in the text.",
-                        "answer": "True"
+                        "statement": statement,
+                        "answer": truth
                     })
+
+                    if len(quiz) >= num_q:
+                        break
+
+                    # --- Cloze (blank random word) ---
+                    cloze_word = random.choice(words)
+                    cloze_q = chunk.replace(cloze_word, "_____", 1)
                     quiz.append({
                         "type": "Cloze",
-                        "question": chunk.replace(answer, "_____"),
-                        "answer": answer
+                        "question": cloze_q,
+                        "answer": cloze_word
                     })
+
                 except Exception as e:
                     st.error(f"Hugging Face error: {e}")
 
         if quiz:
-            st.session_state["quiz"] = quiz
+            st.session_state["quiz"] = quiz[:num_q]  # trim in case we over-generated
             st.session_state["answers"] = {}
 
 # --- Play Quiz ---
 if "quiz" in st.session_state:
     quiz = st.session_state["quiz"]
-    st.success("✅ Quiz ready! Play below:")
+    st.success(f"✅ Quiz ready! ({len(quiz)} questions) Play below:")
 
     for i, q in enumerate(quiz):
         st.markdown(f"### Q{i+1}")
@@ -122,4 +153,4 @@ if "quiz" in st.session_state:
             st.session_state["answers"] = {}
             st.rerun()
 else:
-    st.info("Upload notes or paste text, then click **Generate Quiz**.")
+    st.info("Upload notes or paste text, then select question count and click **Generate Quiz**.")
