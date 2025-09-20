@@ -42,27 +42,22 @@ if text:
 
     if st.button("Generate Quiz"):
         quiz = []
+        all_text = " ".join(chunks)
+        words = all_text.split()
 
-        # loop through enough chunks to generate desired number of questions
-        for idx, chunk in enumerate(chunks):
-            if len(quiz) >= num_q:
-                break
+        while len(quiz) < num_q and len(words) > 5:
+            q_type = random.choice(["MCQ", "TF", "Cloze"])
+            answer = random.choice(words)
 
-            words = chunk.split()
-            if len(words) > 5:
-                # pick a random answer word
-                answer = random.choice(words)
-
-                try:
-                    # --- MCQ from Hugging Face ---
-                    q_text = generate_question(answer, chunk)
+            try:
+                if q_type == "MCQ":
+                    q_text = generate_question(answer, all_text)
                     options = [answer]
                     while len(options) < 4:
                         choice = random.choice(words)
                         if choice not in options:
                             options.append(choice)
                     random.shuffle(options)
-
                     quiz.append({
                         "type": "MCQ",
                         "question": q_text,
@@ -70,10 +65,7 @@ if text:
                         "answer": answer
                     })
 
-                    if len(quiz) >= num_q:
-                        break
-
-                    # --- True/False (randomized) ---
+                elif q_type == "TF":
                     statement_word = random.choice(words)
                     statement = f"{statement_word} appears in the text."
                     truth = "True" if statement_word in words else "False"
@@ -83,23 +75,20 @@ if text:
                         "answer": truth
                     })
 
-                    if len(quiz) >= num_q:
-                        break
-
-                    # --- Cloze (blank random word) ---
+                elif q_type == "Cloze":
                     cloze_word = random.choice(words)
-                    cloze_q = chunk.replace(cloze_word, "_____", 1)
+                    cloze_q = all_text.replace(cloze_word, "_____", 1)
                     quiz.append({
                         "type": "Cloze",
                         "question": cloze_q,
                         "answer": cloze_word
                     })
 
-                except Exception as e:
-                    st.error(f"Hugging Face error: {e}")
+            except Exception as e:
+                st.error(f"Hugging Face error: {e}")
 
         if quiz:
-            st.session_state["quiz"] = quiz[:num_q]  # trim in case we over-generated
+            st.session_state["quiz"] = quiz[:num_q]
             st.session_state["answers"] = {}
 
 # --- Play Quiz ---
@@ -146,7 +135,6 @@ if "quiz" in st.session_state:
 
     with col2:
         if st.button("🔄 Try Again"):
-            # clear answers but keep quiz
             for key in list(st.session_state.keys()):
                 if key.startswith("mcq_") or key.startswith("tf_") or key.startswith("cloze_"):
                     del st.session_state[key]
